@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 )
 
 var concurrency = 100
@@ -27,13 +28,12 @@ func init() {
 	flag.StringVar(&file, "f", default_file, usage)
 }
 
-func make_request(queue chan string, results *[]Site, errors *[]string, complete chan bool) {
+func make_request(queue chan string, results *[]Site, errors *[]string, wait *sync.WaitGroup) {
+	defer wait.Done()
 	for url := range queue {
 		res, err := http.Head(url)
 		if err != nil {
 			*errors = append(*errors, url)
-			// we need to send a signal, or counts will be off
-			complete <- true
 			return
 		}
 
@@ -45,9 +45,6 @@ func make_request(queue chan string, results *[]Site, errors *[]string, complete
 		}
 		*results = append(*results, item)
 	}
-
-	// Signal main() that the goroutine has finished.
-	complete <- true
 }
 
 func process_results(results *[]Site) (int, int) {
@@ -79,9 +76,9 @@ func main() {
 	// Get the specified file or default
 	flag.Parse()
 
-	// Channels for work and signaling
+	// Work queue
 	queue := make(chan string)
-	complete := make(chan bool)
+	var wait sync.WaitGroup
 
 	// Results go here.
 	var errors []string
@@ -108,13 +105,11 @@ func main() {
 
 	// Run maximum concurrent jobs
 	for i := 0; i < concurrency; i++ {
-		go make_request(queue, &results, &errors, complete)
+		wait.Add(1)
+		go make_request(queue, &results, &errors, &wait)
 	}
 
-	// Sit on the signal channel and wait for goroutines to finish.
-	for i := 0; i < concurrency; i++ {
-		<-complete
-	}
+	wait.Wait()
 
 	// Reporting
 	fmt.Println(len(results), "sites returned results,",
