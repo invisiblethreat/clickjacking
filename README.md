@@ -13,7 +13,7 @@ Usage of ./clickjack:
 ```
 
 ### Example using urls.txt(default)
-```go
+```
 $ ./clickjack
 2 sites returned results, 1 sites had errrors.
 Sites vulnerable: 1
@@ -25,7 +25,7 @@ The following sites had issues being retreived:
 ```
 
 ### Example using big.txt
-```go
+```
 $ ./clickjack -f big.txt
 500 sites returned results, 3 sites had errrors.
 Sites vulnerable: 344
